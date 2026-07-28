@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+build/
+out/
+.intellijPlatform/
+.kotlin/
+*.iml
+*.ipr
+*.iws
+
+# IntelliJ IDEA
+.idea/
+
+# Plugin build outputs
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local publish secrets (see publish.env.example)
+publish.env
+.env

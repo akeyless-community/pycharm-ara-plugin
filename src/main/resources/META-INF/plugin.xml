@@ -1,0 +1,87 @@
+<idea-plugin>
+    <id>com.akeyless.ara</id>
+    <name>Akeyless Agentic Runtime Authority</name>
+    <vendor email="support@akeyless.io" url="https://www.akeyless.io">Akeyless</vendor>
+
+    <description><![CDATA[
+    <h2>Akeyless Agentic Runtime Authority (ARA)</h2>
+    <p>
+      Securely query databases and execute cloud / Kubernetes / GitHub actions through
+      Akeyless without exposing credentials in the IDE or to AI agents.
+    </p>
+    <h3>Features</h3>
+    <ul>
+      <li><b>list-secrets</b> — discover ARA-enabled dynamic, rotated, and custom-MCP secrets</li>
+      <li><b>query-db</b> — run SQL / DB commands with server-side JIT credentials</li>
+      <li><b>service-execute</b> — AWS, GCP, Azure, Kubernetes, GitHub, custom MCP</li>
+      <li><b>list-sub-tools</b> — discover sub-tools for a service secret</li>
+      <li><b>Settings UI</b> — Gateway URL and auth (PasswordSafe for secrets)</li>
+      <li><b>SAML / OIDC</b> — browser login on first use</li>
+    </ul>
+    <h3>Getting Started</h3>
+    <ol>
+      <li>Open <b>Settings → Tools → Akeyless ARA</b></li>
+      <li>Set Gateway URL and authentication method</li>
+      <li>Open <b>Tools → Show Akeyless ARA</b></li>
+      <li>Click <b>Refresh secrets</b>, then run queries or service actions</li>
+    </ol>
+    <h3>Requirements</h3>
+    <ul>
+      <li>JetBrains IDE 2024.3 or later (PyCharm, IntelliJ IDEA, and others)</li>
+      <li>Akeyless Gateway with Agentic Runtime Authority configured</li>
+      <li>Valid Akeyless account / access credentials</li>
+    </ul>
+    <p>
+      Matches the Claude / Cursor ARA connectors and
+      <code>akeyless mcp-runtime-authority</code>, implemented natively in the IDE
+      (no CLI or Node required for core use).
+    </p>
+    <p>For more information, visit <a href="https://www.akeyless.io">akeyless.io</a>
+    and <a href="https://docs.akeyless.io/docs/agentic-runtime-authority">ARA docs</a>.</p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+    <b>0.1.3</b>
+    <ul>
+      <li>Initial Marketplace-ready release</li>
+      <li>ARA tool window: list-secrets, query-db, service-execute, list-sub-tools</li>
+      <li>Settings UI with PasswordSafe for Access Key / JWT</li>
+      <li>Supports access_key, saml, oidc, jwt, and universal_identity</li>
+      <li>PyCharm 2026.2 compatibility (no until-build cap)</li>
+    </ul>
+    ]]></change-notes>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="com.akeyless.ara.settings.AraSettings"/>
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.akeyless.ara.settings.AraConfigurable"
+                id="com.akeyless.ara.settings"
+                displayName="Akeyless ARA"/>
+        <toolWindow
+                id="Akeyless ARA"
+                secondary="false"
+                anchor="right"
+                icon="com.akeyless.ara.icons.AraIcons.ToolWindow"
+                factoryClass="com.akeyless.ara.ui.AraToolWindowFactory"/>
+    </extensions>
+
+    <actions>
+        <action id="com.akeyless.ara.OpenSettings"
+                class="com.akeyless.ara.actions.OpenAraSettingsAction"
+                text="Akeyless ARA Settings…"
+                description="Configure Akeyless Agentic Runtime Authority"
+                icon="com.akeyless.ara.icons.AraIcons.Logo">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+        <action id="com.akeyless.ara.ShowToolWindow"
+                class="com.akeyless.ara.actions.ShowAraToolWindowAction"
+                text="Show Akeyless ARA"
+                description="Open the Akeyless ARA tool window"
+                icon="com.akeyless.ara.icons.AraIcons.Logo">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>
