@@ -160,5 +160,6 @@ class BrowserAuthUrlTest {
         assertTrue(url.contains("/api/saml-login"))
         assertTrue(url.contains("access_id=acc"))
         assertTrue(url.contains("is_use_short_token=true"))
+        assertTrue(url.contains("product=ara"))
     }
 }

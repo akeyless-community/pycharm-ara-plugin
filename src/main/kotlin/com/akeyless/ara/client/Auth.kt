@@ -28,7 +28,8 @@ object BrowserAuth {
         val uri = URI(
             "$base$path?access_id=${encode(accessId)}" +
                 "&redirect_uri=${encode(redirectUri)}" +
-                "&is_use_short_token=true",
+                "&is_use_short_token=true" +
+                "&product=$AKEYLESS_PRODUCT_ARA",
         )
         return uri.toString()
     }
@@ -201,7 +202,11 @@ object Auth {
         }
 
         val base = config.gatewayUrl.trimEnd('/')
-        val response = http.postJson("$base/auth", authBody)
+        val response = http.postJson(
+            "$base/auth",
+            authBody,
+            mapOf(AKEYLESS_PRODUCT_HEADER to AKEYLESS_PRODUCT_ARA),
+        )
         if (!response.ok) {
             throw IllegalStateException(
                 Redaction.scrubMessage("Authentication failed (${response.status}): ${response.body}"),

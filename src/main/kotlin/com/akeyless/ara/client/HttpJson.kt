@@ -12,6 +12,12 @@ import java.net.http.HttpResponse
 import java.time.Duration
 import java.util.Base64
 
+/** HTTP header used by Auth for product-scoped client registration. */
+const val AKEYLESS_PRODUCT_HEADER = "Akeyless-Product"
+
+/** Product value for Agentic Runtime Authority / Secretless AI. */
+const val AKEYLESS_PRODUCT_ARA = "ara"
+
 class HttpJsonClient(
     private val http: HttpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(30))
