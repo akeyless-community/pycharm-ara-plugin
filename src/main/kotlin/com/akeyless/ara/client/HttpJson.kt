@@ -18,6 +18,9 @@ const val AKEYLESS_PRODUCT_HEADER = "Akeyless-Product"
 /** Product value for Agentic Runtime Authority / Secretless AI. */
 const val AKEYLESS_PRODUCT_ARA = "ara"
 
+/** Same as the CLI: the Gateway allows a remote command up to 210 s before answering. */
+const val REQUEST_TIMEOUT_SECONDS = 270L
+
 class HttpJsonClient(
     private val http: HttpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(30))
@@ -37,7 +40,7 @@ class HttpJsonClient(
         }
         val builder = HttpRequest.newBuilder()
             .uri(URI.create(url))
-            .timeout(Duration.ofSeconds(120))
+            .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SECONDS))
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
             .POST(HttpRequest.BodyPublishers.ofString(payload))

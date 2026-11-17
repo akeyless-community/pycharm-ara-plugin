@@ -13,6 +13,7 @@ import kotlin.concurrent.thread
 
 object BrowserAuth {
     private const val AUTH_TIMEOUT_MS = 2 * 60 * 1000L
+    private const val EXCHANGE_TIMEOUT_SECONDS = 10L
 
     fun buildAuthUrl(
         authBaseUrl: String,
@@ -29,6 +30,7 @@ object BrowserAuth {
             "$base$path?access_id=${encode(accessId)}" +
                 "&redirect_uri=${encode(redirectUri)}" +
                 "&is_use_short_token=true" +
+                "&response_mode=auth_code" +
                 "&product=$AKEYLESS_PRODUCT_ARA",
         )
         return uri.toString()
@@ -64,6 +66,22 @@ object BrowserAuth {
                         if (error != null) {
                             writeHtml(s.getOutputStream(), 400, "Authentication failed: $error")
                             future.completeExceptionally(IllegalStateException("Authentication failed: $error"))
+                            return@thread
+                        }
+                        val authCode = params["auth_code"]
+                        if (!authCode.isNullOrBlank()) {
+                            try {
+                                val result = exchangeAuthCode(authBaseUrl, authCode)
+                                writeHtml(
+                                    s.getOutputStream(),
+                                    200,
+                                    "<strong>Authentication succeeded.</strong> You may close this tab and return to the IDE.",
+                                )
+                                future.complete(result)
+                            } catch (e: Exception) {
+                                writeHtml(s.getOutputStream(), 400, "Invalid auth code")
+                                future.completeExceptionally(e)
+                            }
                             return@thread
                         }
                         val creds = params["creds"]
@@ -104,6 +122,34 @@ object BrowserAuth {
             }
             acceptor.join(1000)
         }
+    }
+
+    /**
+     * Exchanges the callback's one-time auth code for a token through the Gateway
+     * (Go: ExchangeAuthCodeViaGateway), so the credentials never travel in the callback URL.
+     */
+    fun exchangeAuthCode(authBaseUrl: String, authCode: String): BrowserAuthResult {
+        val http = java.net.http.HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(EXCHANGE_TIMEOUT_SECONDS))
+            .build()
+        val request = java.net.http.HttpRequest.newBuilder()
+            .uri(URI.create("${authBaseUrl.trimEnd('/')}/api/exchange-auth-code"))
+            .timeout(java.time.Duration.ofSeconds(EXCHANGE_TIMEOUT_SECONDS))
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json")
+            .POST(java.net.http.HttpRequest.BodyPublishers.ofString(HttpJsonClient().toJson(mapOf("auth_code" to authCode))))
+            .build()
+        val response = http.send(request, java.net.http.HttpResponse.BodyHandlers.ofString())
+        return parseExchangeResponse(response.statusCode(), response.body().orEmpty())
+    }
+
+    internal fun parseExchangeResponse(status: Int, body: String): BrowserAuthResult {
+        check(status in 200..299) { "Auth code exchange failed ($status)" }
+        val obj = HttpJsonClient().toJsonElement(body).takeIf { it.isJsonObject }?.asJsonObject
+        val token = obj?.get("token")?.takeIf { !it.isJsonNull }?.asString?.trim().orEmpty()
+        val expiresAt = obj?.get("expires_at")?.takeIf { !it.isJsonNull }?.asLong
+        check(token.isNotEmpty() && expiresAt != null) { "Auth code exchange did not return a token" }
+        return BrowserAuthResult(token = token, expiration = (expiresAt * 1000).toString())
     }
 
     private fun parseCredsParam(creds: String): BrowserAuthResult {

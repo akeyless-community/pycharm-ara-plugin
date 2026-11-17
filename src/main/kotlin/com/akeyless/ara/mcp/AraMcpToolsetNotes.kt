@@ -10,6 +10,7 @@ package com.akeyless.ara.mcp
  * `@akeyless-community/cursor-connector`) via AI Assistant → MCP settings.
  *
  * When implemented, tools will mirror Claude/Cursor:
- * list-secrets, query-db, service-execute, list-sub-tools.
+ * list-secrets, query-db, service-execute, list-sub-tools (including remote commands
+ * on SSH, Windows, and LDAP items and SSH certificate issuers).
  */
 object AraMcpToolsetNotes
