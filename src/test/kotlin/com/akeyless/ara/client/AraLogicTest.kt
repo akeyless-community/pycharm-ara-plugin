@@ -44,7 +44,7 @@ class AraListBodiesTest {
     fun `ara list body includes ara-only and types`() {
         val body = AraListBodies.buildAraListItemsBody("tok")
         assertEquals(true, body["ara-only"])
-        assertEquals(listOf("dynamic-secret", "rotated-secret", "static-secret"), body["type"])
+        assertEquals(listOf("dynamic-secret", "rotated-secret", "static-secret", "ssh-cert-issuer"), body["type"])
         assertEquals("tok", body["token"])
     }
 
@@ -161,5 +161,105 @@ class BrowserAuthUrlTest {
         assertTrue(url.contains("access_id=acc"))
         assertTrue(url.contains("is_use_short_token=true"))
         assertTrue(url.contains("product=ara"))
+        assertTrue(url.contains("response_mode=auth_code"))
+    }
+}
+
+class RemoteItemsTest {
+    private fun rotated(name: String, target: String) = mapOf(
+        "item_name" to name,
+        "item_type" to "ROTATED_SECRET",
+        "client_permissions" to listOf("ara_allow_access"),
+        "item_targets_assoc" to listOf(mapOf("target_type" to target)),
+    )
+
+    private fun dynamic(name: String, producer: String) = mapOf(
+        "item_name" to name,
+        "item_type" to "DYNAMIC_SECRET",
+        "client_permissions" to listOf("ara_allow_access"),
+        "item_general_info" to mapOf("dynamic_secret_producer_details" to mapOf("producer_type" to producer)),
+    )
+
+    @Test
+    fun `remote types match Go ARARemoteProducerTypes`() {
+        for (kind in listOf("ssh", "windows", "rdp", "ldap", "linked", "SSH")) {
+            assertTrue(AraProducerTypes.isRemote(kind))
+            assertTrue(AraProducerTypes.isSupported(kind))
+        }
+        assertTrue(!AraProducerTypes.isRemote("aws"))
+    }
+
+    @Test
+    fun `lists remote rotated and dynamic secrets`() {
+        val mapped = mapAraSecrets(
+            listOf(
+                rotated("/r/ssh", "ssh"),
+                rotated("/r/windows", "windows"),
+                rotated("/r/linked", "linked"),
+                rotated("/r/ldap", "ldap"),
+                dynamic("/d/rdp", "rdp"),
+                dynamic("/d/ldap", "ldap"),
+                rotated("/r/unsupported", "vault"),
+            ),
+        )
+        assertEquals(
+            listOf(
+                Triple("/d/ldap", "dynamic-secret", "ldap"),
+                Triple("/d/rdp", "dynamic-secret", "rdp"),
+                Triple("/r/ldap", "rotated-secret", "ldap"),
+                Triple("/r/linked", "rotated-secret", "linked"),
+                Triple("/r/ssh", "rotated-secret", "ssh"),
+                Triple("/r/windows", "rotated-secret", "windows"),
+            ),
+            mapped.map { Triple(it.name, it.secretType, it.targetType) },
+        )
+    }
+
+    @Test
+    fun `lists ssh cert issuers on ssh target type`() {
+        val mapped = mapAraSecrets(
+            listOf(
+                mapOf(
+                    "item_name" to "/ssh/prod-ca",
+                    "item_type" to "SSH_CERT_ISSUER",
+                    "item_metadata" to "prod hosts",
+                    "client_permissions" to listOf("ara_allow_access"),
+                ),
+                mapOf(
+                    "item_name" to "/ssh/no-ara",
+                    "item_type" to "SSH_CERT_ISSUER",
+                    "client_permissions" to listOf("read"),
+                ),
+            ),
+        )
+        assertEquals(1, mapped.size)
+        assertEquals("/ssh/prod-ca", mapped[0].name)
+        assertEquals("ssh-cert-issuer", mapped[0].secretType)
+        assertEquals("ssh", mapped[0].targetType)
+        assertEquals("prod hosts", mapped[0].description)
+    }
+}
+
+class ExchangeAuthCodeTest {
+    @Test
+    fun `converts expires_at seconds to milliseconds`() {
+        val result = BrowserAuth.parseExchangeResponse(200, """{"token":"t-short","expires_at":1900000000}""")
+        assertEquals("t-short", result.token)
+        assertEquals("1900000000000", result.expiration)
+    }
+
+    @Test
+    fun `rejected code fails with status`() {
+        val e = assertThrows(IllegalStateException::class.java) {
+            BrowserAuth.parseExchangeResponse(401, """{"error":"invalid auth code"}""")
+        }
+        assertEquals("Auth code exchange failed (401)", e.message)
+    }
+
+    @Test
+    fun `missing token fails`() {
+        assertThrows(IllegalStateException::class.java) {
+            BrowserAuth.parseExchangeResponse(200, "{}")
+        }
     }
 }

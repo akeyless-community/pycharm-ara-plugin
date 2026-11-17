@@ -16,12 +16,38 @@ implemented in Kotlin — **no Akeyless CLI or Node required** for core use.
 
 ## Features
 
-- **list-secrets** — discover ARA-enabled dynamic, rotated, and custom-MCP secrets
+- **list-secrets** — discover ARA-enabled dynamic, rotated, and custom-MCP secrets, and SSH certificate issuers
 - **query-db** — run database queries via Gateway JIT credentials
-- **service-execute** — AWS, GCP, Azure, Kubernetes, GitHub, or custom MCP actions
-- **list-sub-tools** — discover sub-tools for a service secret
+- **service-execute** — AWS, GCP, Azure, Kubernetes, GitHub, or custom MCP actions, and remote commands on SSH, Windows, and LDAP servers
+- **list-sub-tools** — discover sub-tools for a service secret or remote item
 - **Settings UI** — Gateway URL + auth method (Access Key / JWT stored in PasswordSafe)
 - **SAML / OIDC** — browser login on first use
+
+## Remote commands (SSH, Windows, LDAP)
+
+The **Service Execute** tab also runs one non-interactive command on a remote host, with the credentials of the item you name. The Gateway decides how to run it from the item's target type:
+
+| Item | `target_type` in list-secrets | Runs over |
+|---|---|---|
+| Rotated secret on an SSH target | `ssh` | SSH |
+| Rotated secret on a Windows target | `windows` | WinRM |
+| Rotated secret on a linked target | `linked` | SSH or WinRM, on one of the linked hosts |
+| RDP dynamic secret | `rdp` | SSH or WinRM, as the temporary user |
+| LDAP (Active Directory) rotated or dynamic secret | `ldap` | WinRM over HTTPS, as the domain user |
+| SSH certificate issuer (`secret_type: ssh-cert-issuer`) | `ssh` | SSH, with a short-lived certificate signed for the call |
+
+The payload is either a plain command line (`uptime`, `Get-Service`) or a sub-tool call for anything else:
+
+```json
+{"tool":"run","arguments":{"command":"systemctl status nginx","host":"web1.corp","cwd":"/var/log"}}
+```
+
+- `run` takes `command`, plus optional `host` (required when the item has more than one host; the error lists them), `cwd`, `shell` (`powershell` or `cmd`, WinRM only), `host_key_fingerprint` (`SHA256:<base64>`, SSH only), and `remote_user` (SSH certificate issuers only).
+- `upload` (`remote_path`, base64 `content`, at most 512 KB) and `download` (`remote_path`) move one file.
+- A run returns `stdout`, `stderr`, `exit_code`, `truncated`, and, when sent with `cwd` or run in PowerShell, the `cwd` the command ended in. Pass that `cwd` back on the next call, so a series of commands behaves like one shell session.
+- The **List Sub-Tools** tab on a remote item returns this catalog without connecting to the host.
+
+The same ARA gates apply as for databases: `ara_allow_access`, input rules (the Gateway ships default rules per target type), AI validation, output rules, and an ARA session record. Remote commands need Gateway 5.6.0 or later; an older Gateway answers `unsupported secret type`. A remote call can take up to 3.5 minutes on the Gateway.
 
 ## Requirements
 

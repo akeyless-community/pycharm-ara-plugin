@@ -36,7 +36,13 @@ object AraProducerTypes {
         "hana", "redshift", "mongodb", "redis", "cassandra",
     )
     val SERVICE = setOf("aws", "gcp", "azure", "k8s", "eks", "gke", "github")
+
+    /** Item target types the Gateway runs remote commands on over SSH or WinRM (Go: types.ARARemoteProducerTypes). */
+    val REMOTE = setOf("ssh", "windows", "rdp", "ldap", "linked")
     const val CUSTOM_MCP = "custom-mcp"
+
+    /** secret_type for SSH certificate issuers; the Gateway signs a short-lived certificate per remote call. */
+    const val SSH_CERT_ISSUER = "ssh-cert-issuer"
 
     fun isDb(producerType: String): Boolean = producerType.lowercase() in DB
 
@@ -45,14 +51,16 @@ object AraProducerTypes {
         return n in SERVICE || n == CUSTOM_MCP
     }
 
+    fun isRemote(producerType: String): Boolean = producerType.lowercase() in REMOTE
+
     fun isSupported(producerType: String): Boolean {
         val n = producerType.lowercase()
-        return n in DB || n in SERVICE
+        return n in DB || n in SERVICE || n in REMOTE
     }
 }
 
 object AraListBodies {
-    private val ARA_LIST_ITEM_TYPES = listOf("dynamic-secret", "rotated-secret", "static-secret")
+    val ARA_LIST_ITEM_TYPES = listOf("dynamic-secret", "rotated-secret", "static-secret", AraProducerTypes.SSH_CERT_ISSUER)
 
     fun buildAraListItemsBody(token: String, path: String? = null): Map<String, Any?> {
         val body = linkedMapOf<String, Any?>(
@@ -127,6 +135,14 @@ fun mapAraSecrets(items: List<Map<String, Any?>>): List<AraSecretSummary> {
                     name = name,
                     secretType = "static-secret",
                     targetType = AraProducerTypes.CUSTOM_MCP,
+                    description = (item["item_metadata"] as? String)?.trim()?.ifEmpty { null },
+                )
+            }
+            normalizeItemType(itemType) == AraProducerTypes.SSH_CERT_ISSUER -> {
+                results += AraSecretSummary(
+                    name = name,
+                    secretType = AraProducerTypes.SSH_CERT_ISSUER,
+                    targetType = "ssh",
                     description = (item["item_metadata"] as? String)?.trim()?.ifEmpty { null },
                 )
             }
