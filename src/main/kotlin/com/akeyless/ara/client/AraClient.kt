@@ -178,8 +178,18 @@ class AraClient(
     }
 }
 
-fun formatOAuthRequiredMessage(error: OAuthAuthorizationRequiredException): String =
-    "This secret requires OAuth authorization. " +
+/**
+ * Worded like the Go MCP handlers: list-sub-tools has no auth-code or state, so the
+ * flow completes through service-execute.
+ */
+fun formatOAuthRequiredMessage(error: OAuthAuthorizationRequiredException, toolName: String? = null): String {
+    val next = if (toolName == "list-sub-tools") {
+        "then call service-execute with the auth-code and state parameters to complete the flow."
+    } else {
+        "then retry with the auth-code and state parameters."
+    }
+    return "This secret requires OAuth authorization. " +
         "Open the following URL in your browser to authorize, " +
-        "then retry with the auth-code and state parameters.\n\n" +
+        "$next\n\n" +
         "Authorization URL: ${error.authorizationUrl}\nState: ${error.state}"
+}

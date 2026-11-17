@@ -263,3 +263,21 @@ class ExchangeAuthCodeTest {
         }
     }
 }
+
+class OAuthMessageTest {
+    private val error = OAuthAuthorizationRequiredException("https://auth.example.com/authorize", "state-123")
+
+    @Test
+    fun `execute asks to retry with auth-code and state`() {
+        assertTrue(formatOAuthRequiredMessage(error).contains("then retry with the auth-code and state parameters."))
+    }
+
+    @Test
+    fun `list-sub-tools points at service-execute like Go`() {
+        val message = formatOAuthRequiredMessage(error, "list-sub-tools")
+        assertTrue(
+            message.contains("then call service-execute with the auth-code and state parameters to complete the flow."),
+        )
+        assertTrue(message.endsWith("Authorization URL: https://auth.example.com/authorize\nState: state-123"))
+    }
+}

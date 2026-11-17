@@ -245,7 +245,19 @@ class AraToolWindowPanel(private val project: Project) : JPanel(BorderLayout()) 
                     subToolsResultArea.text = get()
                     statusLabel.text = "Done."
                 } catch (e: Exception) {
-                    showError("list-sub-tools failed", e)
+                    if (unwrap(e) is OAuthAuthorizationRequiredException) {
+                        // list-sub-tools has no auth-code field: finish the flow on the Service Execute tab.
+                        serviceSecretField.text = secret
+                        handleExecuteError(
+                            e,
+                            subToolsResultArea,
+                            serviceAuthCodeField,
+                            serviceStateField,
+                            toolName = "list-sub-tools",
+                        )
+                    } else {
+                        showError("list-sub-tools failed", e)
+                    }
                 }
             }
         }.execute()
@@ -256,10 +268,11 @@ class AraToolWindowPanel(private val project: Project) : JPanel(BorderLayout()) 
         resultArea: JBTextArea,
         authCodeField: JBTextField,
         stateField: JBTextField,
+        toolName: String? = null,
     ) {
         val cause = unwrap(e)
         if (cause is OAuthAuthorizationRequiredException) {
-            val msg = formatOAuthRequiredMessage(cause)
+            val msg = formatOAuthRequiredMessage(cause, toolName)
             resultArea.text = msg
             stateField.text = cause.state
             statusLabel.text = "OAuth authorization required."
@@ -273,7 +286,11 @@ class AraToolWindowPanel(private val project: Project) : JPanel(BorderLayout()) 
                 BrowserUtil.browse(cause.authorizationUrl)
                 Messages.showInfoMessage(
                     project,
-                    "After authorizing, paste the auth-code into the form and run again (state is pre-filled).",
+                    if (toolName == "list-sub-tools") {
+                        "After authorizing, paste the auth-code on the Service Execute tab and run it (secret and state are pre-filled)."
+                    } else {
+                        "After authorizing, paste the auth-code into the form and run again (state is pre-filled)."
+                    },
                     "Akeyless ARA",
                 )
             }
